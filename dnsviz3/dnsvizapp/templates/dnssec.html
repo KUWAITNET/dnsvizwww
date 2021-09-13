@@ -1,0 +1,256 @@
+{% extends "domain_page.html" %}
+
+{% load static %}
+
+{% block extra_media %}
+
+	{{ block.super }}
+
+	{% if use_js %}
+	<!-- Javascripts and associated styles -->
+	<script type="text/javascript" src="{% static "js/raphael-min.js" %}"></script>
+	<script type="text/javascript" src="{% static "js/dnsviz.js" %}"></script>
+	<style type="text/css" media="screen">
+		/* hide regions that require javascript */
+		.toggle { display:none; }
+	</style>
+	<script type="text/javascript">
+		<!--
+		$(document).ready(function() {
+			// turn on hidden regions if javascript is enabled
+			$('.toggle').show();
+
+			// visualization options
+			$('#options .toggle').click(function() {
+				var tog = $(this);
+				$('#options form').slideToggle({
+					'duration': 'slow',
+					'complete': function() {
+						if (tog.text() == 'hide') {
+							tog.text('show');
+							$('#options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
+						} else {
+							tog.text('hide');
+						}
+					},
+					'start': function() {
+						if (tog.text() == 'show') {
+							$('#options').removeAttr("style");
+						}
+					}
+				});
+			});
+
+			{% if not options_form.errors %}
+			$('#options form').hide();
+			$('#options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
+			$('#options .toggle').text('show');
+			{% endif %}
+			
+
+			// viz options tooltips
+			$('#options-list a.form-tooltip').tooltip({
+				track: true,
+				show: { 'delay': 0 },
+				hide: { 'delay': 0 },
+				tooltipClass: "fixed-width"
+			});
+
+			{% if dynamic %}
+			var load_status = 'Analyzing...';
+			var timeout = 300000;
+			{% else %}
+			var load_status = 'Loading...';
+			var timeout = 30000;
+			{% endif %}
+			$('#graph').html('<div id="auth_graph"><div id="graph_loading"><img src="{% static "images/loading.gif" %}" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div></div>');
+			$('#notices').html('<div id="notices_loading"><img src="{% static "images/loading.gif" %}" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div>');
+
+			var load_graph = function () {
+				$.ajax("{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.js{% if query_string %}?{{ query_string }}{% endif %}", {
+					timeout: timeout,
+					cache: true,
+					success: function(data) {
+						var panelWidth = $('#diagram-region').width();
+						try {
+							var image = new AuthGraph('auth_graph', parseInt(panelWidth*0.99), 1.4);
+
+							//TODO determine whether graph has nodes
+
+							image.postNotices('notices', '{% static "images/dnssec_legend/" %}');
+
+							$("#notices-region h5").click(function() {
+								var tog = $(this);
+								$(this).next().slideToggle({
+									'duration': 'slow',
+									'complete': function() {
+										if (tog.hasClass("notice-state-active")) {
+											tog.removeClass("notice-state-active");
+											tog.addClass("notice-state-default");
+										} else {
+											tog.removeClass("notice-state-default");
+											tog.addClass("notice-state-active");
+										}
+									},
+								});
+							});
+							$("#notices-region h5").addClass("notice-state-default");
+							$("#notices-region h5").next().hide();
+
+							image.draw();
+
+							$('#graph-hint').html('Mouse over and click elements in the graph below to see more detail.');
+						} catch (err) {
+							load_graph_alternate(err);
+						}
+					},
+					complete: function(jqXHR, textStatus) {
+						var err;
+						if (textStatus == "success" || textStatus == "notmodified") {
+							$('#graph_loading').remove();
+							$('#notices_loading').remove();
+							return;
+						}
+						if (textStatus != "error") {
+							err = textStatus;
+						}
+						load_graph_alternate(err);
+						$('#graph_loading').remove();
+						$('#notices_loading').remove();
+					}
+				});
+			};
+
+			var load_graph_alternate = function (err_msg) {
+				var qs = '?{{ query_string }}';
+				if (err_msg != undefined) {
+					qs += '{% if query_string %}&amp;{% endif %}err=' + err_msg;
+				}
+				$('#graph-hint').html('We were unable to load the interactive version of the graph.');
+				$('#graph').html('<img id="auth_graph" src="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png' + qs + '" alt="DNSSEC authentication graph" />');
+			};
+
+			load_graph();
+		});
+
+		$(window).load(function() {
+			// viz image sizing
+			if ($('#auth_graph.img') || $('#auth_graph.object')) {
+				var widthImg = $('#auth_graph').width();
+				var widthPanel = $('#diagram-region').width();
+				if (widthImg > widthPanel){
+					$('#auth_graph').css('width','99%');
+				}
+				$('#auth_graph').show();
+
+			}
+		});
+		-->
+	</script>
+	{% endif %}
+{% endblock %}
+
+{% block page_content %}
+	{% if not dynamic %}
+	{% block dnssec_options %}
+	{% include "dnssec_options.html" %}
+	{% endblock %}
+	{% endif %}
+
+	<!-- VISUALIZATION DATA -->
+	<div id="viz">
+		<div id="viz-headers">
+			<div id="notices-header">
+				Notices
+			</div>
+			<div id="diagram-header">
+				DNSSEC Authentication Chain
+			</div>
+		</div> <!-- viz-headers -->
+
+		<div id="notices-region">
+			<div id="notices">
+			{% for cat, subcat_list in notices.items %} 
+			{% if subcat_list %}
+			<div class="notice-category">
+			<h4><img src="{{ STATIC_URL }}images/dnssec_legend/{{ cat|slugify }}.png" alt="{{ cat|capfirst }}" class="header-icon" />{{ cat|capfirst }}</h4>
+				{% for subcat, items in subcat_list.items %}
+					{% if items %}
+					<div class="{{ subcat|lower|slugify }}">
+						<h5>{{ subcat|lower|slugify|capfirst }} <span class="count">({{ items|length }})</span></h5>
+						<div>
+							<ul>
+							{% for item in items %}
+							<li>
+								{{ item }}
+							</li>
+							{% endfor %}
+							</ul>
+						</div>
+					</div>
+					{% endif %}
+				{% endfor %}
+			</div>
+			{% endif %}
+			{% endfor %}
+			</div>
+
+			<div id="dnssec-legend">
+				<h3>DNSKEY legend</h3>
+				<a href="/doc/dnssec/">Full legend</a><br />
+				<table>
+					<tr><td><img src="{% static "images/dnssec_legend/dnskey_sep.png" %}" alt="SEP bit set" /></td><td>SEP bit set</td></tr>
+					<tr><td><img src="{% static "images/dnssec_legend/dnskey_revoke.png" %}" alt="Revoke bit set" /></td><td>Revoke bit set</td></tr>
+					<tr><td><img src="{% static "images/dnssec_legend/trust_anchor.png" %}" alt="Trust anchor" /></td><td>Trust anchor</td></tr>
+					<!--tr><td><img src="{% static "images/dnssec_legend/alias_dep.png" %}" alt="Alias dependency" /></td><td>Alias dependency</td></tr-->
+				</table>
+			</div>
+
+			<div id="see-also">
+				<h3>See also</h3>
+				<a href="http://dnssec-debugger.verisignlabs.com/{{ name_obj.to_text }}">DNSSEC Debugger</a> by <a href="http://www.verisignlabs.com/">Verisign Labs</a>.
+			</div>
+
+		</div> <!-- notices-region -->
+
+		<div id="diagram-region">
+			{% if not dynamic %}
+			<div id="graph-download">
+				Download: <a href="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png?download=1{% if query_string %}&amp;{{ query_string }}{% endif %}">png</a> | <a href="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.svg?download=1{% if query_string %}&amp;{{ query_string }}{% endif %}">svg</a><br />
+			</div>
+			{% endif %}
+
+			<div id="graph-hint">
+			{% if use_js %}
+			<noscript>
+				<div>
+				<img alt="Warning" src="{% static "images/dnssec_legend/warning.png" %}" />
+				JavaScript doesn't appear to be be enabled in your browser. 
+					Please enable JavaScript, or <a href="?{% if query_string %}{{ query_string }}&amp;{% else %}{% endif %}no_js=1">click here</a> to view an alternate version of this page, that includes a more detailed analysis.
+				</div>
+			</noscript>
+			{% else %}
+				<div>
+				<img alt="Warning" src="{% static "images/dnssec_legend/warning.png" %}" />
+					JavaScript is required to make the graph below interactive.
+				</div>
+			{% endif %}
+			</div>
+
+			<div id="graph">
+				{% if use_js %}
+				<noscript>
+				{% endif %}
+					<div><img id="auth_graph" src="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png{% if query_string %}?{{ query_string }}{% endif %}" alt="DNSSEC authentication graph" /></div>
+				{% if use_js %}
+				</noscript>
+				{% endif %}
+			</div>
+
+				<br style="clear: both;" />
+		</div> <!-- diagram -->	
+		<br style="clear: both;" />
+
+	</div> <!-- viz -->
+
+{% endblock %}

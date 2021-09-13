@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block body %}
+
+	{% block body_tag %}
+	<body>
+	{% endblock %}
+
+	<div id="container">
+		<div id="github-source">
+			<p><a href="https://github.com/dnsviz/dnsviz">View on GitHub<img src="{% static "images/GitHub-Mark-32px.png" %}" /></a></p>
+		</div>
+
+		{% block search_form %}
+		<!-- SEARCH AGAIN FORM -->
+		<div id="search-again">
+			<form method="get" action="/search/">
+				<fieldset>
+					<input id="search-again-field" name="d" value="Go to domain name&hellip;" size="35" onfocus="if (this.value == 'Go to domain name&hellip;') { this.value = ''; }" onblur="if (this.value == '') { this.value = 'Go to domain name&hellip;'; }" />
+					<input type="submit" class="button" value="Go &raquo;" />
+				</fieldset>
+			</form>
+		</div>
+		{% endblock %}
+
+		<!-- WEBSITE TITLE -->
+		<h2 class="site-subtitle"><a href="/"><img src="{% static "images/logo-dnsviz.png" %}" alt="DNSViz: A DNS visualization tool" /></a></h2>
+
+		<div id="content-sub">
+		<!-- BEGIN CONTENT -->
+		{% block maincontent %}
+		{% endblock %}
+		</div><!-- #content-sub -->
+
+		<div id="footer">
+			<a name="footer"></a>
+			<p><a href="/contact/">Questions and Comments</a></p>
+			<br />
+			<div id="footer-buttons">
+			<ul>
+				<li><a href="https://www.sandia.gov/"><img src="{% static "images/logo-sandia.png" %}" alt="Sandia National Laboratories" /></a></li>
+				<li><a href="https://www.verisign.com/"><img src="{% static "images/logo-verisign.png" %}" alt="Verisign" /></a></li>
+				<li><a href="https://www.dns-oarc.net/"><img src="{% static "images/oarc_banner_050_white.png" %}" alt="DNS-OARC" /></a></li>
+			</ul>
+			</div>
+			<br />
+			<p>Copyright &copy; 2010 - 2014 Sandia Corporation</p>
+		</div>
+
+	</div><!-- #container -->
+	</body>
+
+{% endblock %}
