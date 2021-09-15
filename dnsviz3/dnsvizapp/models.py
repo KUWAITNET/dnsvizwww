@@ -1248,11 +1248,8 @@ class DNSResponse(models.Model):
                 while index < len(self.edns_options):
                     (otype, olen) = struct.unpack('!HH', self.edns_options[index:index + 4])
                     index += 4
-                    opt = dns.edns.option_from_wire(otype, self.edns_options, index, olen)
-                    options_list = list(self._message.options)
-                    options_list.append(opt)
-                    self._message = options_list
-                    # self._message.options.append(opt)
+                    opt = dns.edns.option_from_wire(otype, self.edns_options, index, olen)                    
+                    self._message.options.append(opt)
                     index += olen
 
             self._export_sections(self._message)
