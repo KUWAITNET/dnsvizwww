@@ -27,10 +27,9 @@
 #
 
 import datetime
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+
+import io
+
 import struct
 
 import dns.edns, dns.exception, dns.flags, dns.message, dns.name, dns.rcode, dns.rdataclass, dns.rdata, dns.rdatatype, dns.resolver, dns.rrset
@@ -256,7 +255,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             else:
                 # If only args were supplied, then this could match __init__()
                 # for either parent.
-                if isinstance(args[0], (int, long)):
+                if isinstance(args[0], (int, int)):
                     # In the case of models.Model, the first argument would be int,
                     # for the 'id' field.
 
@@ -496,7 +495,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                     edns_flags = query.edns_flags
                     edns_options = b''
                     for opt in query.edns_options:
-                        s = StringIO.StringIO()
+                        s = io.BytesIO()
                         opt.to_wire(s)
                         data = s.getvalue()
                         edns_options += struct.pack('!HH', opt.otype, len(data)) + data
@@ -927,7 +926,7 @@ class ResourceRecord(models.Model):
 
     def _set_rdata(self, rdata):
         self._rdata = rdata
-        wire = StringIO.StringIO()
+        wire = io.BytesIO()
         rdata.to_wire(wire)
         self.rdata_wire = wire.getvalue()
         for name, value in self.rdata_extra_field_params(rdata).items():
@@ -1146,7 +1145,7 @@ class DNSResponse(models.Model):
         for index, rrset in enumerate(section):
             rr_cls = ResourceRecord.objects.model_for_rdtype(rrset.rdtype)
             for rr in rrset:
-                sio = StringIO.StringIO()
+                sio = io.BytesIO()
                 rr.to_wire(sio)
                 rdata_wire = sio.getvalue()
                 params = dict(rr_cls.rdata_extra_field_params(rr).items())
@@ -1204,7 +1203,7 @@ class DNSResponse(models.Model):
             self.edns_flags = message.ednsflags
             self.edns_options = b''
             for opt in message.options:
-                s = StringIO.StringIO()
+                s = io.BytesIO()
                 opt.to_wire(s)
                 data = s.getvalue()
                 self.edns_options += struct.pack('!HH', opt.otype, len(data)) + data
@@ -1229,6 +1228,8 @@ class DNSResponse(models.Model):
                 return None
             #XXX generate a queryid, rather than using 0
             self._message = dns.message.Message(0)
+            
+
             self._message.flags = self.flags
 
             if self.has_question:
@@ -1248,7 +1249,10 @@ class DNSResponse(models.Model):
                     (otype, olen) = struct.unpack('!HH', self.edns_options[index:index + 4])
                     index += 4
                     opt = dns.edns.option_from_wire(otype, self.edns_options, index, olen)
-                    self._message.options.append(opt)
+                    options_list = list(self._message.options)
+                    options_list.append(opt)
+                    self._message = options_list
+                    # self._message.options.append(opt)
                     index += olen
 
             self._export_sections(self._message)

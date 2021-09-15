@@ -52,7 +52,7 @@ def datetime_url_decode(timestamp):
 def name_url_encode(name):
     if name == dns.name.root:
         return 'root'
-    return urllib.quote(name.canonicalize().to_text().rstrip('.').replace('/', 'S'), safe='')
+    return urllib.parse.quote(name.canonicalize().to_text().rstrip('.').replace('/', 'S'), safe='')
 
 def name_url_decode(name):
     if name == 'root':
@@ -105,8 +105,8 @@ def validate_captcha(response):
     logger = logging.getLogger('django.request')
     try:
         data = (('secret', settings.CAPTCHA_SECRET), ('response', response))
-        f = urllib2.urlopen('https://www.google.com/recaptcha/api/siteverify', data=urllib.urlencode(data))
-    except urllib2.URLError:
+        f = urllib.request.urlopen('https://www.google.com/recaptcha/api/siteverify', data=urllib.urlencode(data))
+    except urllib.error.URLError:
         logger.exception('Error validating captcha')
         return False
     try:

@@ -39,7 +39,7 @@ import re
 import struct
 import tempfile
 import urllib
-
+import functools
 import dns.name, dns.rdataclass, dns.rdatatype, dns.rdtypes.ANY.NS, dns.rdtypes.IN.A, dns.rdtypes.IN.AAAA, dns.rrset
 
 from django.conf import settings
@@ -469,11 +469,11 @@ class DomainNameResponsesMixin(object):
             qrrsets.insert(0, (zone_obj, zone_obj.name, dns.rdatatype.DS))
             parent_all_auth_servers = zone_obj.parent.get_auth_or_designated_servers()
             parent_server_list = [(ip, zone_obj.parent.get_ns_name_for_ip(ip)[0]) for ip in parent_all_auth_servers]
-            parent_server_list.sort(cmp=util.ip_name_cmp)
+            parent_server_list.sort(key=functools.cmp_to_key(util.ip_name_cmp))
 
         all_auth_servers = zone_obj.get_auth_or_designated_servers()
         server_list = [(ip, zone_obj.get_ns_name_for_ip(ip)[0]) for ip in all_auth_servers]
-        server_list.sort(cmp=util.ip_name_cmp)
+        server_list.sort(key=functools.cmp_to_key(util.ip_name_cmp))
         response_consistency = []
 
         for my_name_obj, name, rdtype in qrrsets:
@@ -708,9 +708,9 @@ class DomainNameServersMixin(object):
                 glue_mapping = zone_obj.get_glue_ip_mapping()
                 parent_status['in_parent'] = name in glue_mapping
                 glue_ips_v4 = filter(lambda x: x.version == 4, glue_mapping.get(name, set()))
-                glue_ips_v4.sort()
+                glue_ips_v4 = sorted(glue_ips_v4)
                 glue_ips_v6 = filter(lambda x: x.version == 6, glue_mapping.get(name, set()))
-                glue_ips_v6.sort()
+                glue_ips_v6 = sorted(glue_ips_v6)
             else:
                 glue_ips_v4 = []
                 glue_ips_v6 = []
@@ -734,9 +734,9 @@ class DomainNameServersMixin(object):
 
             auth_mapping = zone_obj.get_auth_ns_ip_mapping()
             auth_ips_v4 = filter(lambda x: x.version == 4, auth_mapping.get(name, set()))
-            auth_ips_v4.sort()
+            auth_ips_v4 = sorted(auth_ips_v4)
             auth_ips_v6 = filter(lambda x: x.version == 6, auth_mapping.get(name, set()))
-            auth_ips_v6.sort()
+            auth_ips_v6 = sorted(auth_ips_v6)
 
             row.append({ 'in_child': in_child, 'auth_ips_v4': auth_ips_v4, 'auth_ips_v6': auth_ips_v6 })
             delegation_matrix.append(row)
@@ -746,7 +746,7 @@ class DomainNameServersMixin(object):
         for server in zone_obj.get_stealth_servers():
             names, ancestor_zone = zone_obj.get_ns_name_for_ip(server)
             stealth_rows.append((ancestor_zone, names, server))
-        stealth_rows.sort(cmp=stealth_cmp)
+        stealth_rows.sort(key=functools.cmp_to_key(stealth_cmp))
 
         for ancestor_zone, names, server in stealth_rows:
             names = map(fmt.humanize_name, names)
@@ -839,8 +839,7 @@ def domain_search(request):
     name = request.GET.get('d', '')
 
     url_re = re.compile(r'^\s*(https?://)?(%s)/?\s*$' % urls.dns_name)
-    name = url_re.sub(r'\2', name)
-
+    name = url_re.sub(r'\2', name)    
     ipv4_re = re.compile(r'^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$')
     if ipv4_re.match(name):
         octets = name.split('.')
@@ -856,8 +855,8 @@ def domain_search(request):
         name_valid = False
 
     # even an valid name might not fit our (current) URL criteria
-    name_re = re.compile(r'^(%s)$' % urls.dns_name)
-    if name_re.match(urllib.parse.unquote(name)) is None:
+    name_re = re.compile(r'^(%s)$' % urls.dns_name)    
+    if name_re.match(urllib.parse.unquote(str(name))) is None:
         name_valid = False
 
     if not name_valid:
